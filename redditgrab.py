@@ -22,22 +22,29 @@ if __name__ == "__main__":
     
     driver.get("https://www.reddit.com")
 
-    #To deal with infinite scrolling, we keep going to the bottom of the page until we have all our posts.
+    
+    skipAds = True
     postsOnScreen = 0
+    lastPost = 0
+    textPosts = []
     while postsOnScreen < numPostsToGrab:
         posts = driver.find_elements_by_class_name(redditPostClass)
-        postsNoAds = [p for p in posts if not p.find_elements_by_class_name(adClass)]
-        postsOnScreen = len(postsNoAds)
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        WebDriverWait(postsNoAds[-1], 20).until(EC.visibility_of_element_located((By.CLASS_NAME, redditHdrClass)))
+        while lastPost < len(posts):
+            #To deal with infinite scrolling, we need to scroll to the new posts as they appear (or to the bottom)
+            driver.execute_script("arguments[0].scrollIntoView();", posts[lastPost])
 
-    #Out of site elements are usually set to display:none, so we need to scroll to the top to interact with them.
-    driver.execute_script("window.scrollTo(0, 0);")
+            #Do not include ads in the collected posts if requested.
+            if not posts[lastPost].find_elements_by_class_name(adClass) and skipAds:
+                headline = WebDriverWait(posts[lastPost], 20).until(EC.visibility_of_element_located((By.CLASS_NAME, redditHdrClass)))
+                subreddit = WebDriverWait(posts[lastPost], 20).until(EC.visibility_of_element_located((By.CLASS_NAME, subredditClass)))            
+                textPosts.append((headline.text, subreddit.text))
+
+            lastPost += 1
+                
+        postsOnScreen = len(textPosts)
+        WebDriverWait(posts[-1], 20).until(EC.visibility_of_element_located((By.CLASS_NAME, redditHdrClass)))
+
+    for text in textPosts:
+        print(text);
     
-    for post in postsNoAds[:numPostsToGrab]:
-        driver.execute_script("arguments[0].scrollIntoView();", post)
-        headline = WebDriverWait(post, 20).until(EC.visibility_of_element_located((By.CLASS_NAME, redditHdrClass)))
-        subreddit = WebDriverWait(post, 20).until(EC.visibility_of_element_located((By.CLASS_NAME, subredditClass)))
-        print("%s: %s"%(subreddit.text, headline.text))
-        
     driver.quit()
