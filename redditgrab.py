@@ -32,18 +32,18 @@ class RedditGrabber:
                 if not posts[lastPost].find_elements_by_class_name(self.adClass) and skipAds:
                     headline = WebDriverWait(posts[lastPost], 20).until(EC.visibility_of_element_located((By.CLASS_NAME, self.redditHdrClass)))
                     subreddit = WebDriverWait(posts[lastPost], 20).until(EC.visibility_of_element_located((By.CLASS_NAME, self.subredditClass)))
-                    textPosts.append((headline.text, subreddit.text))
+                    textPosts.append((len(textPosts)+1, subreddit.text, headline.text))
 
                 lastPost += 1
                 
             postsOnScreen = len(textPosts)
             WebDriverWait(posts[-1], 20).until(EC.visibility_of_element_located((By.CLASS_NAME, self.redditHdrClass)))
 
-        for text in textPosts:
-            print(text)
         driver.quit()
         return textPosts
 
 if __name__ == "__main__":
     blah = RedditGrabber()
-    blah.get_reddit_posts(5)
+    posts = blah.get_reddit_posts(25)
+    for post in posts:
+        print(post)
