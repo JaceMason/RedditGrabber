@@ -8,7 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 class RedditGrabber:
 	options = Options()
-	#options.headless = True
+	options.headless = True
 
 	redditPostClass = "_1oQyIsiPHYt6nx7VOmd1sz"
 	redditHdrClass = "_eYtD2XCVieq6emjKBH3m"
