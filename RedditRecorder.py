@@ -3,6 +3,15 @@ from datetime import datetime, timezone
 import os
 
 class RedditRecorder:
+	databaseName = "redditlog.db"
+	
+	def _get_data(func):
+		def check_database(self, hours):
+			if not os.path.isfile(self.databaseName):
+				return ({})#Return an empty dictionary
+			return func(self, hours)
+		return check_database
+
 	def raise_type_error(self, message):
 		raise TypeError(message + " Data must be in the form of [(<int>, <str>, <str>), ...]")
 	
@@ -34,8 +43,7 @@ class RedditRecorder:
 			if not isinstance(listEntry[2], str):
 				self.raise_type_error("List entry %d, tuple entry %d." % (listEntryIndex, 2))
 		
-		database = sqlite3.connect('redditlog.db')
-		
+		database = sqlite3.connect(self.databaseName)
 		cur = database.cursor()
 		
 		#Initialize the database
@@ -69,6 +77,48 @@ class RedditRecorder:
 		
 		database.commit()
 		database.close()
+	
+	@_get_data
+	def get_posts_in_last_hours(self, hours):
+		database = sqlite3.connect(self.databaseName)
+		cur = database.cursor()
+		#Get the actual data tuple from the database
+		postsAndTime = cur.execute('''
+			SELECT poll_time, post_rank, subreddit, headline
+			FROM polls INNER JOIN posts
+			ON polls.poll_id = posts.post_poll AND polls.poll_time > ?''',
+			(datetime.utcnow().timestamp() - (hours*3600),)).fetchall()
+		database.close()
+		
+		#First element of the tuple is the time, use that as a key to a dictionary of posts
+		pollDict = {}
+		for post in postsAndTime:
+			pollTime = post[0]
+			if pollTime not in pollDict:
+				pollDict[pollTime] = [] #If no key, add it.
+			pollDict[pollTime].append((post[1], post[2], post[3]))#[1]rank, [2]subreddit, [3]headline
+		
+		return(pollDict)
+	
+	def get_posts_by_subreddit(self, hours):
+		pollDict = self.get_posts_in_last_hours(hours)
+		
+		#Use subreddit as a key to associate relevant headlines. (No more rank/time)
+		subredditDict = {}
+		#Go through each poll_time
+		for key in pollDict:
+			#Go through the posts within each poll_time
+			for post in pollDict[key]:
+				subreddit = post[1]
+				headline = post[2]
+				
+				if subreddit not in subredditDict:
+					subredditDict[subreddit] = []
+				
+				if headline not in subredditDict[subreddit]: #eliminate duplicates per subreddit
+					subredditDict[subreddit].append(headline)
+		
+		return subredditDict
 
 if __name__ == "__main__":
 	blah = RedditRecorder()
